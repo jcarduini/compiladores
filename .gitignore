@@ -1,0 +1,6 @@
+*.cmi
+*.cmo
+*.mli
+*.output
+src/lexico.ml
+src/sintatico.ml

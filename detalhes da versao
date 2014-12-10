@@ -1,0 +1,2 @@
+Analisador semantico com and, or e not.
+Aparentemente os erros de variavel nao inicializada estao verificados. testar outros erros.
