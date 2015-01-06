@@ -39,6 +39,7 @@ type tipo_base = TInt
 		|TVoid
     |TBool
 		|TGen
+    |TParam (*a ser alterado em tempo de execucao*)
 
 (* Definicao de um comando e uma lista de comandos*)
 and comandos = comando list
@@ -93,8 +94,8 @@ and expressao = { valor: expr;
 
 (* Tipos de valor de uma expressao *)
 and expr = ExpInt of int
-	 | ExpFloat of float
-	 | ExpString of string
+   | ExpFloat of float
+	| ExpString of string
    | ExpVar of variavel
    | ExpBool of bool 
    | ExpBin of operadorBin * expressao * expressao

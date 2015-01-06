@@ -4,6 +4,7 @@
 #load "semantico.cmo";;
 #load "sintatico.cmo";;
 #load "lexico.cmo";;
+#load "interpretador.cmo";;
 
 (* do arquivo TlexIdenta.ml *)
 #load "pre_processador.cmo";;
@@ -11,7 +12,7 @@
 open ArvSint;;
 open Semantico;;
 open Printf;;
-
+open Interpretador;;
 
 
 let sintatico lexbuf =
@@ -46,3 +47,8 @@ let arvtab_str arq =
 	let _ = close_in ic in
 	let tabSimb = semantico arvSint in
 	(arvSint,tabSimb)
+
+let interp arq =
+  let arv = sint_arq arq in
+  let amb = semantico arv in
+  interpretador amb arv

@@ -18,6 +18,7 @@ let tab2list tab = Hashtbl.fold (fun c v ls -> (c,v) :: ls) tab []
 
 let ambfun =
 	let amb = Hashtbl.create 23 in
+    (*Inserir TPARAM nessa tabela? Confirmar com o professor!!!*)
 	Hashtbl.add amb Mais [ (TInt, TInt, TInt); (TGen, TGen, TGen); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
 	Hashtbl.add amb Menos [ (TInt, TInt, TInt); (TGen, TGen, TGen); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
 	Hashtbl.add amb Mult [ (TInt, TInt, TInt); (TGen, TGen, TGen); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
@@ -61,6 +62,7 @@ let get_nome_tipo tipo =
         | TInt -> "int";
         | TString -> "string"
         | TVoid -> "void"
+        | TParam -> "TParam"
     )
 
 (* Verifica se os tipos dos termos sao compativeis com o tipo do operador*)
@@ -272,12 +274,14 @@ let rec verifica_tipos_parametros param arg nomeFun =
     (match param with
     [] ->  ignore()
     | p1 :: param ->  (match arg with
-                        [] -> ignore()
-                        | arg1 :: arg ->  (if (p1.tipoP = arg1.tipo) then 
+                        [] -> print_endline ("Numero de parametros menor que o necessario")
+                        | arg1 :: arg ->  ignore(p1.tipoP = arg1.tipo);
+                                          verifica_tipos_parametros param arg nomeFun
+                        (*if (p1.tipoP = arg1.tipo) then 
                                                 verifica_tipos_parametros param arg nomeFun
                                           else 
                                                print_endline ("Os tipos dos argumentos nao correspondem aos tipos dos parametros da funcao " ^ nomeFun);
-                                               failwith "Erro semantico: verifica_tipos_parametros")))
+                                               failwith "Erro semantico: verifica_tipos_parametros"*)))
 
 (* Verifica os argumentos que sao variaveis *)
 let verifica_var_arg amb var =
@@ -413,19 +417,26 @@ and verifica_cmd amb cmd current param =
     | _ -> erro "verifica_cmd" cmd.pcmd "Comando nao definido. Erro Semantico."
 
 (* Verifica lista de parametros *)
-let rec verifica_params locais par  = 
-    match par with
+let rec verifica_params locais params  = 
+    match params with
     [] -> []
     | par :: params -> let tpar = verifica_param locais par  in
+                           print_endline("Paramentro encontrado "^par.idP);
+                           Hashtbl.add locais tpar.idP (EntVar (cria_ent_var TParam));
                            tpar :: verifica_params locais params 
 
 and verifica_param locais param =
   try
        let entVar = Hashtbl.find locais param.idP in 
        (match entVar with
-        | EntVar var -> ( param.tipoP <- var.tipagem;
-                          Hashtbl.remove locais param.idP;
-                          param )
+        | EntVar var -> 
+                         (*(if (var.tipagem <> TGen) then
+                            param.tipoP <- var.tipagem
+                          else
+                            param.tipoP <- TParam);*)
+                        param.tipoP <- TParam;
+                        Hashtbl.remove locais param.idP;
+                        param
        | _-> print_endline ("O nome '" ^ param.idP ^ "' esta associado a uma funcao."); failwith "Erro semantico: verifica_param")
    with
       Not_found -> param
@@ -440,7 +451,7 @@ let rec verifica_funcs amb funcs =
 and verifica_func amb func =
     insere_nova_funcao amb func;
     current_func := func.idF;
-    verifica_cmds amb func.cmdsF !current_func func.paramsF;
+    (*verifica_cmds amb func.cmdsF !current_func func.paramsF;*)
 
     let entFun = Hashtbl.find amb !current_func in 
         (match entFun with
@@ -448,10 +459,10 @@ and verifica_func amb func =
             let params = verifica_params funcao.varLocais func.paramsF in
             let novo_reg = { varLocais = funcao.varLocais; 
                             tiporetorno = funcao.tiporetorno; 
-                            param = params } in
-            Hashtbl.replace amb !current_func (EntFn novo_reg); 
+                            param = params} in
+            Hashtbl.replace amb !current_func(EntFn novo_reg); 
             func.varLocaisF <- funcao.varLocais;
-            (*verifica_cmds amb func.cmdsF !current_func func.paramsF;*)
+            verifica_cmds amb func.cmdsF !current_func func.paramsF;
         | _ -> print_endline ("O nome '" ^ !current_func ^ "' esta associado a uma varivel."); failwith "Erro semantico: verifica_func");
     let entTab = Hashtbl.find amb !current_func in
         (match entTab with
@@ -464,7 +475,7 @@ and verifica_func amb func =
 let verifica_prog amb arv = 
     verifica_funcs amb arv.funcsP;
     current_func := "";
-    verifica_cmds amb arv.cmdsP !current_func []
+    verifica_cmds amb arv.cmdsP!current_func []
 
 let semantico arv =
     let ambiente = Hashtbl.create 23 in 

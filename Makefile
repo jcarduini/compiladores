@@ -2,9 +2,14 @@ CAMLC=ocamlc
 CAMLLEX=ocamllex
 CAMLYACC=ocamlyacc
 
+compInter: atesem interpretador.cmo
+
 atesem: atesint arvSint.cmo semantico.cmo
 
 atesint: pre_processador.cmo sintatico.cmo
+
+interpretador.cmo: arvSint.cmi interpretador.ml
+	$(CAMLC) -c interpretador.ml
 
 compSint: lexico.cmo sintatico.cmo
 
