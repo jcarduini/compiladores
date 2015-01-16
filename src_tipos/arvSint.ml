@@ -32,6 +32,7 @@ module Posicao =
       }
   end
 
+      
 (* Tipos base *)
 type tipo_base = TInt
 		|TFloat
@@ -39,7 +40,6 @@ type tipo_base = TInt
 		|TVoid
     |TBool
 		|TGen
-    |TParam (*a ser alterado em tempo de execucao*)
 
 (* Definicao de um comando e uma lista de comandos*)
 and comandos = comando list
@@ -49,8 +49,8 @@ and comando = { vcmd: cmd;
 
 (* Definicao de um parametro e uma lista de parametros*)
 and parametro = { idP: string; 
-                  mutable tipoP: tipo_base;
-		  posP: Posicao.t
+                  tipoP: tipo_base;
+		              posP: Posicao.t
                 }
 
 and parametros = parametro list
@@ -64,7 +64,7 @@ and argumentos = argumento list
 and funcao = { idF: string;
 	       paramsF: parametros;
 	       cmdsF: comandos;
-	       mutable returnF: tipo_base option;
+	       returnF: tipo_base;
 	       posF: Posicao.t;
 	       mutable varLocaisF: (string, entradaTabela) Hashtbl.t;
 	     }
@@ -119,11 +119,11 @@ and ambiente = (string, entradaTabela) Hashtbl.t
 
 (* Entrada de uma funcao na tabela de simbolos *)
 and entradaFuncao = { varLocais: (string, entradaTabela) Hashtbl.t;
-		       mutable tiporetorno: tipo_base option; 
+		       tiporetorno: tipo_base; 
 		       param: parametros }
 
 (* Entrada de uma variavel na tabela de simbolos *)
-and entradaVariavel = { mutable tipagem:  tipo_base;
+and entradaVariavel = { tipagem:  tipo_base;
 		        mutable v_inicial: expressao;
 		        mutable endereco: int option }
 

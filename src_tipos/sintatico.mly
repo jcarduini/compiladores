@@ -18,20 +18,31 @@
       cmdsP = c } 
 
 (* Cria uma funcao onde o é a ordem na regra gramatical, i é o nome da funcao, 
-	p sao os parametros e c sao os comandos dentro da funcao. O tipo de retorno inicia como None *)
-  let cria_funcao o i p c =
+	p sao os parametros, t é o tipo de retorno e c sao os comandos dentro da funcao.*)
+  let cria_funcao o i p t c =
     { idF = i;
       paramsF = p;
-      cmdsF = c; 
-      returnF = None; 
+      cmdsF = c;
+      match t with
+      	String -> returnF = TString
+      	| Float -> returnF = TFloat
+      	| Int -> returnF = TInt
+      	| Bool -> returnF = TBool
+      	| Void -> returnF = TVoid
+      	| _ -> failwith "Tipo invalido na funcao "^idF
       posF = Posicao.pos(o);
       varLocaisF = Hashtbl.create 20 }      
 
 (* Cria um parametro onde o é a ordem na regra gramatical e i o nome (id) do parametro.
 	O tipo do parametro inicia como TGen *)
-  let cria_parametro o i =
+  let cria_parametro o i tipo =
     { idP = i;
-      tipoP = TGen; 
+      match tipo with
+      	String -> tipoP = TString
+      	| Float -> tipoP = TFloat
+      	| Int -> tipoP = TInt
+      	| Bool -> tipoP = TBool
+      	| _ -> failwith "Erro de tipos no parametro "^idP
       posP = Posicao.pos(o)} 
 
 %}
@@ -43,16 +54,17 @@
 %token <bool> Bool
 %token <string> Id
 %token <string> String
+/*%token Void_func, Int_func, Float_func, Bool_func, String_func*/
 %token <int * int * token list> Linha
 %token Indenta Dedenta NovaLinha
 %token Pto PtVirg
-%token Def Is From Return
+%token Def Is From Return Seta
 %token True False
 %token AParen FParen ACol FCol ACha FCha 
 %token If Else While DoisPontos 
 %token For In Range Virg 
 %token Not And Or
-%token Atrib
+%token Atrib 
 %token OpSoma OpSub Mult Div Modulo Pot
 %token Maior Menor Igual Diferente MaiorIgual MenorIgual  
 %token AtribMais AtribMenos AtribVezes AtribDiv AtribMod
@@ -74,8 +86,8 @@ funcoes: { [] }
          ;
 
 /* define a estrutura de uma funcao e cria a funcao */
-funcao: Def Id AParen parametros FParen DoisPontos NovaLinha
-        Indenta comandos Dedenta { cria_funcao 1 $2 $4 $9 };
+funcao: Def Id AParen parametros FParen Seta tipo_funcao DoisPontos NovaLinha
+        Indenta comandos Dedenta { cria_funcao 1 $2 $4 $7 $11 }; /*Mudar para dar suporte a parametros*/
 
 /* define a estrutura de uma lista de funcoes e um parametro e cria o parametro */
 parametros: { [] }
@@ -83,9 +95,23 @@ parametros: { [] }
   ;
 
 /* um parametro pode estar seguido de virgula ou nao */
-parametro: Id Virg { cria_parametro 1 $1}
-  		 | Id { cria_parametro 1 $1 };
+parametro: Id DoisPontos tipo_parametro Virg { cria_parametro 1 $1 $3} /*Mudar a cria parametro para suportar tipos*/
+  		 | Id DoisPontos tipo_parametro { cria_parametro 1 $1 $3};
 
+tipo_funcao: 
+	String {TString}
+	| Int {TInt}
+	| Float {TFloat}
+	| Bool {TBool}
+	| Void {TVoid}
+	;
+
+tipo_parametro: 
+		String {TString}
+		| Int {TInt}
+		| Float {TFloat}
+		| Bool {TBool}
+		;
 
 argumentos: { [] }
   | argumentos argumento { $1 @ [ $2 ] }

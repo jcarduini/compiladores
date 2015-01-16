@@ -52,6 +52,11 @@ ocamlc -c sintatico.ml
         ("while", While);
         ("range", Range);
         ("print", Print);
+        (*("int", Int);
+        ("None", Void);
+        ("str",String);
+        ("float",Float);
+        ("bool",Bool);*)
         ("raw_input", Input);
         ("int_parse",   IntParse)
         ]
@@ -134,6 +139,12 @@ and token  = parse
 | "if"				  {  If}
 | "else"		      {  Else}
 | "not"				  { Not}
+| "int"               {Int}
+| "float"             {Float}
+| "str"               {String}
+| "bool"              {Bool}
+| "None"              {Void}
+| "->"                {Seta} (* tipo funcao *)
 | "True"			  {  True}	
 | "False"			  {  False}
 | "for"				  {  For}
