@@ -52,11 +52,11 @@ ocamlc -c sintatico.ml
         ("while", While);
         ("range", Range);
         ("print", Print);
-        ("int", TIPOInt);
-        ("None", TIPOVoid);
-        ("str", TIPOString);
-        ("float", TIPOFloat);
-        ("bool", TIPOBool);
+        ("int", Int);
+        ("None", Void);
+        ("str",String);
+        ("float",Float);
+        ("bool",Bool);
         ("raw_input", Input);
         ("int_parse",   IntParse)
         ]

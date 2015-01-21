@@ -167,7 +167,7 @@ and avalia amb cmd funcs =
 		
     | ChamaFuncaoVoid (nomeFunc, arg) -> 
                 let func = procuraFunc nomeFunc funcs in
-                ignore(avalia_func func arg funcs)
+                ignore(avalia_func func.varLocaisF func arg funcs)
 
     | CmdPrint(e) -> imprime_exp e amb
 
