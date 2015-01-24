@@ -1,5 +1,0 @@
-def teste():
-	a = 1 
-	return a
-
-print(teste())

@@ -387,11 +387,11 @@ and verifica_cmd amb cmd current param =
         | _ -> erro "CmdFor " v.pos "deveria ser TInt")
         
     | CmdReturn (e) -> 
-			(*let tipo_exp = verifica_exp amb e current in
+			let tipo_exp = verifica_exp amb e current in
 			let tipo_func = verifica_retorno amb e current in
 			if(tipo_exp <> tipo_func) then 
 				erro "verifica_cmd" cmd.pcmd "Retorno invalido."
-			else*)
+			else
 				ignore()
 				
 			

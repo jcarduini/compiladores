@@ -36,9 +36,9 @@ module Posicao =
 (* Tipos base *)
 type tipo_base = TInt
 		|TFloat
-	  |TString
+		|TString
 		|TVoid
-    |TBool
+		|TBool
 		|TGen
 
 (* Definicao de um comando e uma lista de comandos*)

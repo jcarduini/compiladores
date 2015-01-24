@@ -160,14 +160,14 @@ and avalia amb cmd funcs =
     match cmd.vcmd with
     ChamaFuncaoAtrib (exp, nomeFunc, arg) -> 
         let func = procuraFunc nomeFunc funcs in
-		let vexp = avalia_func func.varLocaisF func arg funcs in
+		let vexp = avalia_func func arg funcs in
         (match vexp with
             None -> failwith "Funcao sem retorno"
             | Some x -> atribui_var exp x amb);
 		
     | ChamaFuncaoVoid (nomeFunc, arg) -> 
                 let func = procuraFunc nomeFunc funcs in
-                ignore(avalia_func func.varLocaisF func arg funcs)
+                ignore(avalia_func func arg funcs)
 
     | CmdPrint(e) -> imprime_exp e amb
 

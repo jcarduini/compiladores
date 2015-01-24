@@ -1,0 +1,3 @@
+- Arrumar o erro de tipos quando ele não reconhece o tipo do parâmetro (no semantico, comparar se a variável é uma variável local ou um parâmetro)
+
+- Fazer o return (no semantico)

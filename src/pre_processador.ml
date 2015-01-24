@@ -114,7 +114,7 @@ let lexico =
 				(match toks with
 				tok::toks ->
 					tokbuf := Some toks;
-					(*print_tok tok;*)
+					print_tok tok;
 					tok
 			| [] -> print_endline "EOF";
 					EOF)
@@ -125,7 +125,7 @@ let lexico =
 		(match tokens with
 		tok::toks ->
 			tokbuf := Some toks;
-			(*print_tok tok;*)
+			print_tok tok;
 			tok
 		| [] -> carrega lexbuf)
 	| None -> carrega lexbuf	
