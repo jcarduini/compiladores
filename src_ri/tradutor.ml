@@ -1,6 +1,7 @@
 open ArvSint;;
 open Printf;;
 open Scanf;;
+open ArvRi;;
 
 (*avalia uma expressao e retorna um tipo expr*)
 let rec avalia_exp amb expr = 

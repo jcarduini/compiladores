@@ -2,7 +2,6 @@ type temporario =
 	Label of string
 	| Temp of string
 
-
 let conta_temp = ref 0
 let conta_lab  = ref 0
 

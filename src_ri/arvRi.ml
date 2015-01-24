@@ -1,6 +1,7 @@
 open Temporarios
 
-type exp =  CONST of int
+type exp =  CONSTI of int
+	|CONSTF of float
 	| NAME of Label
 	| TEMP of Temp
 	| BINOP of binop * exp * exp
@@ -21,8 +22,7 @@ and binop = PLUS
 	  | DIV
 	  | AND
 	  | OR
-	  | LSHIFT
-	  | RSHIFT
+	  
 
 and relop = EQ 
 	  | NE

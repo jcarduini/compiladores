@@ -48,4 +48,4 @@ pre_processador.cmo: sintatico.cmi lexico.cmi pre_processador.ml
 
 
 clean:
-	rm *.cmo *.cmi lexico.ml sintatico.ml sintatico.mli  *.output
+	rm *.cmo *.cmi lexico.ml sintatico.ml sintatico.mli  *.output *.ml~ *.mly~
