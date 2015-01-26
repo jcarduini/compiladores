@@ -104,6 +104,7 @@ let print_tok tok =
 	| Print -> print_endline "PRINT"
 	| Input -> print_endline "INPUT"
 	| IntParse -> print_endline "INT_PARSE"
+	| _ -> print_endline "outra coisa"
 
 	
 (* Chama o analisador lexico *)

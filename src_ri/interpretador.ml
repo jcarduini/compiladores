@@ -250,7 +250,3 @@ let rec interpretador amb arv funcs =
     [] -> Printf.printf "\nFim execucao\n"
   | cmd :: cmds -> avalia amb cmd funcs;
    interpretador amb cmds funcs
-
-
-
-

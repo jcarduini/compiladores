@@ -1,6 +1,7 @@
 open ArvSint;;
 open Printf;;
 open Scanf;;
+open ArvRi;;
 
 (*avalia uma expressao e retorna um tipo expr*)
 let rec avalia_exp amb expr = 
@@ -250,7 +251,3 @@ let rec interpretador amb arv funcs =
     [] -> Printf.printf "\nFim execucao\n"
   | cmd :: cmds -> avalia amb cmd funcs;
    interpretador amb cmds funcs
-
-
-
-
