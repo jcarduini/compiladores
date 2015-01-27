@@ -1,0 +1,441 @@
+open ArvSint;;
+open Printf;;
+
+let current_func = ref ""
+
+(* Funcoes para mostrar os erros na tela *)
+let erro nome pos msg =
+	let nlin = pos.Posicao.lin_final
+	and ncol = pos.Posicao.col_final in
+	let msglc = sprintf "Erro na linha %d, coluna %d" nlin ncol in
+	print_endline msglc;
+	print_endline (msg ^ nome);
+	failwith "Erro semantico"
+
+
+(* Tabela de simbolos para as operacoes *)
+let tab2list tab = Hashtbl.fold (fun c v ls -> (c,v) :: ls) tab []
+
+let ambfun =
+	let amb = Hashtbl.create 23 in
+    (*Inserir TPARAM nessa tabela? Confirmar com o professor!!!*)
+	Hashtbl.add amb Mais [ (TInt, TInt, TInt); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
+	Hashtbl.add amb Menos [ (TInt, TInt, TInt); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
+	Hashtbl.add amb Mult [ (TInt, TInt, TInt); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
+	Hashtbl.add amb Div [ (TInt, TInt, TInt); (TFloat, TFloat, TFloat); (TFloat,TFloat,TInt); (TFloat,TInt,TFloat)] ;
+    Hashtbl.add amb Modulo [ (TInt, TInt, TInt); (TFloat, TFloat, TFloat)] ;
+    (*operadores de comparacao serao expressoes booleanas*)
+	Hashtbl.add amb Menor [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	Hashtbl.add amb Maior [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	Hashtbl.add amb Igual [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	Hashtbl.add amb Diferente [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	Hashtbl.add amb MaiorIgual [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	Hashtbl.add amb MenorIgual [ (TBool, TInt, TInt); (TBool, TFloat, TFloat); (TBool,TInt,TFloat);(TBool,TFloat,TInt)] ;
+	(*nao admite outros tipos de and e or que nao seja com bool*)
+    Hashtbl.add amb And [ (TBool, TBool, TBool)];
+    Hashtbl.add amb Or [ (TBool, TBool, TBool)];
+	amb 
+
+let tipo e = e.tipo
+
+let get_nome nome =
+    (match nome with
+        Mais -> "+";
+        | Menos ->"-";
+        | Mult -> "*" 
+        | Div -> "/";
+        | Modulo -> "%";
+        | Menor -> "<";
+        | Maior -> ">";
+        | Igual -> "==";
+        | Diferente -> "!=";
+        | MaiorIgual -> ">=";
+        | MenorIgual -> "<=";
+        | And -> "and";
+        | Or -> "or";
+    )
+let get_nome_tipo tipo =
+    (match tipo with
+        TBool -> "boolean";
+        | TGen -> "generico";
+        | TFloat -> "float";
+        | TInt -> "int";
+        | TString -> "string"
+        | TVoid -> "void"
+    )
+
+(* Verifica se os tipos dos termos sao compativeis com o tipo do operador*)
+let rec verifica_op t1 t2 op2 ls =
+    match ls with
+    (r,a1,a2)::ls -> if ((t1 == a1) && (t2 == a2)) then r
+                     else verifica_op t1 t2 op2 ls
+    | [] -> print_endline ("Expressao invalida. Operador " ^ get_nome op2 ^" usado indevidamente.\nParametros arg1: " ^ get_nome_tipo t1^ " e arg2: "^ get_nome_tipo t2); failwith "Erro de tipos no operador" 
+
+
+(*Insere uma nova funcao na tabela*)
+let insere_nova_funcao amb func =
+    try
+	let entrada = Hashtbl.find amb func.idF in
+	    (match entrada with
+	      | EntVar _ -> print_endline ("O nome '" ^ func.idF ^ "' esta associado a uma variavel."); failwith "Erro semantico: insere_nova_funcao "
+          | _ -> print_endline ("A funcao '" ^ func.idF ^ "' ja foi definida.");
+                 failwith "Erro semantico: insere_nova_funcao")
+    with
+        Not_found -> Hashtbl.add amb func.idF (EntFn (cria_ent_func func.returnF func.paramsF))
+
+(* Retorna a tabela das variaveis locais de uma funcao *)
+let var_locais_func tabGeral nomeFun =
+    try
+        let entFn = Hashtbl.find tabGeral nomeFun in
+                    (match entFn with
+                    EntFn entFunc -> entFunc.varLocais
+                    | _ -> print_endline ("O nome '" ^ nomeFun ^ "' esta associado a uma variavel."); failwith "Erro semantico: var_locais_func ")
+    with
+        Not_found -> failwith "Funcao nao encontrada (var_locais_func)"
+
+(* Insere variavel em uma tabela e retorna o tipo, caso já exista apenas retorna o tipo *)
+let insere_var tab nome current =
+    (* Variaveis na funcao corrente *)
+    if (current <> "") then 
+    (
+        let tabVar = Hashtbl.find tab current in
+                    (match tabVar with
+                    EntFn entFun -> (try
+                                        let var = Hashtbl.find entFun.varLocais nome in
+                                                    (match var with
+                                                    EntVar t -> t.tipagem
+                                                    | EntFn _ -> print_endline ("O nome '" ^ nome ^ "' esta associado a uma funcao."); failwith "Erro semantico: insere_ver")
+                                     with 
+                                        Not_found -> Hashtbl.add entFun.varLocais nome (EntVar (cria_ent_var TGen)); TGen )
+                    | _ -> failwith "Erro insere_var") 
+    )
+(*Variaveis fora das funcoes*)
+    else 
+    (
+        try
+            let ent = Hashtbl.find tab nome in        
+                     (match ent with
+                     EntVar t -> t.tipagem
+                     | EntFn _ -> print_endline ("O nome '" ^ nome ^ "' esta associado a uma funcao."); failwith "Erro semantico: insere_var")
+        with
+            Not_found -> Hashtbl.add tab nome (EntVar (cria_ent_var TGen)); TGen 
+    )
+
+(* Adiciona variavel se nao existir *)
+let rec verifica_var amb pos var current =
+    match var with
+    | VarSimples nome -> insere_var amb nome current
+
+(* Retorna tabela de simbolos corrente (de variaveis locais ou a geral)*)
+and ret_tabela amb current =
+    if (current <> "") then
+        let entFun = Hashtbl.find amb current in 
+                    (match entFun with 
+                    | EntFn f -> f.varLocais 
+                    | _ -> print_endline ("O nome '" ^ current ^ "' esta associado a uma variavel."); failwith "Erro semantico: ret_var")
+    else amb
+
+(* Verifica os tipos da atribuicao e infere os tipos para as variaveis *)
+and verifica_tipos_atrib e1 e2 amb current = 
+    let t1 = tipo e1 and t2 = tipo e2 in 
+    begin
+        if (t2 == TGen) then
+            erro " verifica_tipos_atrib " e2.pos "variavel do lado direito nao inicializada"
+        else(
+            if(t1 <> TGen) then 
+            (    
+                if (t1 <> t2) then 
+                    erro " verifica_tipos_atrib " e1.pos "Os tipos deveriam ser iguais."
+                (match e1.valor with
+		             ExpVar (VarSimples nome) -> 
+		                 let entVar = Hashtbl.find (ret_tabela amb current) nome in 
+		                             (match entVar with 
+		                             EntVar var -> 
+		                                 var.tipagem <- t2; 
+		                                 e1.tipo <- t2
+		                             | _-> print_endline ("O nome '" ^ nome ^ "' esta associado a uma funcao."); failwith "Erro semantico: verifica_tipos_atrib")
+		             | _ -> erro " verifica_tipos_atrib " e2.pos "Expressao nao eh variavel.")
+            )
+            else
+                (match e1.valor with
+                | ExpVar (VarSimples nome) -> 
+                    let entVar = Hashtbl.find (ret_tabela amb current) nome in 
+                                (match entVar with 
+                                EntVar var -> var.tipagem <- t2; e1.tipo <- t2
+                                | _-> print_endline ("O nome '" ^ nome ^ "' esta associado a uma funcao."); failwith "Erro semantico: verifica_tipos_atrib")
+                | _ -> erro " verifica_tipos_atrib " e2.pos "Expressao nao eh variavel.")
+        )
+    end
+
+(* Verifica se as parcelas correspondem ao tipo do operador *)
+and verifica_primitiva op t1 t2 =
+    let tipos_op = Hashtbl.find ambfun op in verifica_op t1 t2 op tipos_op         
+(* *)
+and verifica_exp amb express current = 
+    match express.valor with
+    ExpInt _    -> express.tipo <- TInt
+    | ExpFloat _    -> express.tipo <- TFloat
+    | ExpString _ -> express.tipo <- TString
+    | ExpBool _    -> express.tipo <- TBool
+    | ExpGen -> express.tipo <- TGen
+    | ExpVar v -> express.tipo <- (verifica_var amb express.pos v current)
+    | ExpUn (not,expressao) -> 
+        verifica_exp amb expressao current;
+        (if (expressao.tipo == TGen) then
+            erro "verifica_exp" expressao.pos " operador not usado com variavel nao inicializada ");
+        express.tipo <-TBool (*nao importa qual a expressao o not sempre vai ser bool*)
+    | ExpBin (op,e1,e2) ->
+        verifica_exp amb e1 current;
+        verifica_exp amb e2 current;
+        (if (e1.tipo == TGen) then
+            erro " verifica_exp " e1.pos "Variavel nao definida"
+        else if (e2.tipo == TGen) then
+            erro " verifica_exp " e2.pos "Variavel nao definida");
+        express.tipo <- (verifica_primitiva op (tipo e1) (tipo e2))
+
+
+(* Retorna o tipo de uma variavel que sera retornada*)
+let tipo_var_retorno v locais param =
+  try
+     let entrada = Hashtbl.find locais v in 
+      (match entrada with
+        EntVar entVar -> entVar.tipagem
+      | _ -> print_endline ("O nome '" ^ v ^ "' esta associado a uma funcao."); failwith "Erro semantico: tipo_var_retorno")
+  with
+     Not_found -> (let arg = procuraParam v param in
+	              (match arg with 
+	               | Some parametro -> parametro.tipoP                              
+	               | None -> print_endline ("A variavel '" ^ v ^ "' nao esta definida."); failwith "Erro semantico: tipo_var_retorno"))
+
+(* Retorna o tipo de retorno de uma funcao, nao pode ser alterada *)
+let tipo_retorno amb current = 
+    try
+        let entradaFuncao = Hashtbl.find amb current in
+            (match entradaFuncao with
+            EntFn entFun -> entFun.tiporetorno
+            | _ -> print_endline ("O nome '" ^ current ^ "' esta associado a uma variavel."); failwith "Erro semantico: tipo_var_retorno")
+    with
+        Not_found -> print_endline ("A funcao '" ^ current ^ "' nao foi definida."); failwith "Erro semantico: retorna_tipo_funcao"
+
+(* Verifica o retorno de uma funcao *)
+let verifica_retorno amb expr current =
+    if (current <> "") then 
+        tipo_retorno amb current
+    else
+        erro "verifica_retorno" expr.pos "O comando return deve ser usado dentro de uma funcao"
+
+(* Retorna a lista de parametros de uma funcao *) 
+let retorna_param_funcao amb nomeFuncao = 
+	try		
+		let tab = Hashtbl.find amb nomeFuncao in
+		(match tab with
+		| EntFn entFun -> entFun.param
+		| _ -> print_endline ("O nome '" ^ nomeFuncao ^ "' esta associado a uma variavel."); failwith "Erro semantico: retorna_param_funcao")
+	with
+		Not_found -> print_endline ("A funcao '" ^ nomeFuncao ^ "' nao foi definida."); failwith "Erro semantico: retorna_param_funcao"
+
+(* Verifica os tipos dos parametros de uma funcao *)
+let rec verifica_tipos_parametros param arg nomeFun =
+    (match param with
+    [] ->  (match arg with 
+            [] -> ignore()
+            |_ -> failwith "Erro semantico: numero de parametros menor que o numero de argumentos")
+    | p1 :: param ->  (match arg with
+                        [] -> failwith "Numero de argumentos menor que o numero de parametros"
+                        | arg1 :: arg -> 
+                            if (p1.tipoP = arg1.tipo) then 
+                                verifica_tipos_parametros param arg nomeFun
+                            else 
+                               print_endline ("Os tipos dos argumentos nao correspondem aos tipos dos parametros da funcao " ^ nomeFun);
+                               failwith "Erro semantico: verifica_tipos_parametros"))
+
+(* Verifica os argumentos que sao variaveis *)
+let verifica_var_arg amb var =
+    try 
+        let entrada = Hashtbl.find amb var in
+        (match entrada with
+        | EntVar entVar -> entVar.tipagem
+        | _ -> print_endline ("O nome '" ^ var ^ " 'esta associado a uma funcao."); failwith "Erro semantico: verifica_var_arg")
+    with
+        Not_found -> print_endline ("Variavel '" ^ var ^ "' nao definida."); failwith "Erro semantico: verifica_var_arg"
+
+(* Verifica argumentos *)
+let rec verifica_args amb args = 
+    (match args with
+    [] -> ignore()
+    | arg :: args -> verifica_arg amb arg; verifica_args amb args)
+
+(* Verifica argumento *)
+and verifica_arg amb arg =
+    
+    (match arg.valor with
+    ExpInt _    -> arg.tipo <- TInt
+    | ExpFloat _    -> arg.tipo <- TFloat
+    | ExpString _ -> arg.tipo <- TString
+    | ExpGen -> arg.tipo <- TGen
+    | ExpVar (VarSimples v) -> arg.tipo <- (verifica_var_arg amb v)
+    | _ -> print_endline ("Nao e permitido usar operacao como argumento de chamada de funcao"); failwith "Erro semantico: verifica_arg")
+    
+(* Verifica comandos *)
+let rec verifica_cmds amb cmds current param = 
+    match cmds with
+    [] -> ignore()
+    | cmd :: cmds -> verifica_cmd amb cmd current param; verifica_cmds amb cmds current param
+
+(* Verifica comando *)
+and verifica_cmd amb cmd current param =
+    match cmd.vcmd with
+    | ChamaFuncaoAtrib (e1, nomeFunc, arg) ->
+        (* verifica se pode ser feita a atribuicao *)
+        verifica_exp amb e1 current;
+        let tipoFunc = tipo_retorno amb nomeFunc and t1 = tipo e1 in 
+            (match tipoFunc with
+            | TVoid -> erro "verifica_cmd" e1.pos ("Nao existe tipo para atribuicao. A funcao '" ^ nomeFunc ^ "' tem tipo Void.")
+            | TGen -> erro "verifica_cmd" e1.pos ("Nao existe tipo para atribuicao. A funcao '" ^ nomeFunc ^ "' tem tipo TGen.")
+            | tip -> (match t1 with
+                        | TGen -> (match e1.valor with
+                                    | ExpVar (VarSimples var) -> 
+                                        let entrada = Hashtbl.find (ret_tabela amb current) var in 
+                                            (match entrada with 
+                                            EntVar entVar -> entVar.tipagem <- tip; e1.tipo <- tip
+                                            | _-> print_endline ("O nome" ^ current ^ "esta associado a uma funcao."); 
+                                                  failwith "Erro semantico: verifica_cmd")
+                                    | _ -> erro "verifica_cmd" e1.pos "Expressao nao eh variavel.")
+                        | _ -> if (t1 <> tip) then
+                                erro "verifica_cmd" e1.pos "Os tipos para a atribuicao devem ser iguais. ")
+                        );
+            verifica_args (ret_tabela amb current) arg;
+            verifica_tipos_parametros param arg nomeFunc
+
+    | ChamaFuncaoVoid (nomeFunc, arg) ->
+        verifica_args (ret_tabela amb current) arg;
+        verifica_tipos_parametros param arg nomeFunc
+
+    | CmdPrint (e) -> verifica_exp amb e current;
+                    (if (e.tipo == TGen) then
+                        erro "impossivel printar" e.pos "variavel nao inicializada");
+    | CmdInput (e1, e2) -> verifica_exp amb e1 current; 
+                           verifica_exp amb e2 current;
+                           (match e1.tipo with 
+                            | TString -> (match e1.valor with
+                                | ExpVar (VarSimples v) -> let ent = Hashtbl.find amb v in
+                                                           (match ent with
+                                                            | EntVar var -> var.tipagem <- TString
+                                                            | _ -> failwith "Espera variavel, encontrou funcao")
+                                | _ -> failwith "Espera variavel") 
+                           | TGen ->
+                                e1.tipo <- TString;
+                                (match e1.valor with
+                                | ExpVar (VarSimples v) -> let ent = Hashtbl.find amb v in
+                                                           (match ent with
+                                                            | EntVar var -> var.tipagem <- TString
+                                                            | _ -> failwith "Espera variavel, encontrou funcao")
+                                | _ -> failwith "Espera variavel") 
+                            |_ -> failwith "Nao eh possivel alterar os tipos em tempo de execucao"
+                            )
+                                              
+	| CmdIntParse (e1, e2) -> verifica_exp amb e1 current; 
+                           verifica_exp amb e2 current;
+                           (match e2.tipo with
+                           | TString -> 
+                               (match e1.valor with
+                                | ExpVar (VarSimples v) -> let ent = Hashtbl.find amb v in
+                                                           (match ent with
+                                                            | EntVar var -> 
+                                                            (match var.tipagem with 
+                                                                TInt -> ignore()
+                                                                |TGen -> var.tipagem <- TInt
+                                                                | _ -> failwith "Nao eh possivel alterar os tipos em tempo de execucao")
+                                                            )
+                                | _ -> failwith "Espera variavel")  
+                            | _ -> failwith "Esperava string")         						  
+
+    | CmdAtrib  (e1,e2) -> 
+        verifica_exp amb e1 current;
+        verifica_exp amb e2 current;
+        verifica_tipos_atrib e1 e2 amb current 
+   
+    | CmdIf (e, ce, cs) -> 
+        verifica_exp amb e current;
+        (if (e.tipo <> TBool) then
+            erro "comando if " e.pos " Espera expressao booleana");
+        begin      	
+            verifica_cmds amb ce current param;
+            (match cs with
+            | None -> ignore()
+            | Some cmds -> verifica_cmds amb cmds current param)
+        end
+
+    | CmdWhile (e, cs) -> 
+        verifica_exp amb e current;
+        let te = tipo e in
+        begin      	
+            if (te <> TBool) then 
+                erro " (comando while)" cmd.pcmd "Condicao possui tipo diferente de booleano";
+        verifica_cmds amb cs current param;
+        end
+        (* verificar se eh preciso tratar a lista *)
+
+    | CmdFor (v, range, cmds) -> 
+        verifica_exp amb v current;
+	    (match v.tipo with
+        | TInt -> 
+            (match range.vcmd with
+            | CmdRange (ini, fim, inc) -> ignore () (* verificar tipos do range*)
+            | _ -> erro "range" cmd.pcmd "Range invalida");
+            verifica_cmds amb cmds current param
+        | _ -> erro "CmdFor " v.pos "deveria ser TInt")
+        
+    | CmdReturn (e) -> 
+			(*let tipo_exp = verifica_exp amb e current in
+			let tipo_func = verifica_retorno amb e current in
+			if(tipo_exp <> tipo_func) then 
+				erro "verifica_cmd" cmd.pcmd "Retorno invalido."
+			else*)
+				ignore()
+				
+			
+    | _ -> erro "verifica_cmd" cmd.pcmd "Comando nao definido. Erro Semantico."
+
+
+(* Verificacao das funcoes *)
+let rec verifica_funcs amb funcs = 
+  match funcs with
+  [] -> ignore()
+  | func :: funcs -> verifica_func amb func; verifica_funcs amb funcs
+
+(* Verificacao de funcao *)
+and verifica_func amb func =
+    insere_nova_funcao amb func;
+    current_func := func.idF;
+    (*verifica_cmds amb func.cmdsF !current_func func.paramsF;*)
+
+    let entFun = Hashtbl.find amb !current_func in 
+        (match entFun with
+        | EntFn funcao ->
+            let params = func.paramsF in
+            let novo_reg = { varLocais = funcao.varLocais; 
+                            tiporetorno = funcao.tiporetorno; 
+                            param = params} in
+            Hashtbl.replace amb !current_func(EntFn novo_reg); 
+            func.varLocaisF <- funcao.varLocais;
+            verifica_cmds amb func.cmdsF !current_func func.paramsF;
+        | _ -> print_endline ("O nome '" ^ !current_func ^ "' esta associado a uma varivel."); 
+               failwith "Erro semantico: verifica_func")
+    (*let entTab = Hashtbl.find amb !current_func in
+        (match entTab with
+        | EntFn entFunc -> (if (entFunc.tiporetorno == None) then
+                            entFunc.tiporetorno <- Some TVoid); 
+                            func.returnF <- entFunc.tiporetorno 		     
+        | _ -> print_endline ("O nome '" ^ !current_func ^ "' esta associado a uma varivel."); failwith "Erro semantico: verifica_func")*)
+	
+(* Verifica o programa *)
+let verifica_prog amb arv = 
+    verifica_funcs amb arv.funcsP;
+    verifica_cmds amb arv.cmdsP!current_func [];
+    current_func := ""
+    
+let semantico arv =
+    let ambiente = Hashtbl.create 23 in 
+    verifica_prog ambiente arv;
+    ambiente
